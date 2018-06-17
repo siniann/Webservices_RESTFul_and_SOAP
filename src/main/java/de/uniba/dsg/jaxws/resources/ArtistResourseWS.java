@@ -2,6 +2,7 @@ package de.uniba.dsg.jaxws.resources;
 
 import com.google.gson.Gson;
 import de.uniba.dsg.interfaces.ArtistApi;
+import de.uniba.dsg.jaxws.JaxWsServer;
 import de.uniba.dsg.jaxws.MusicApiImpl;
 import de.uniba.dsg.jaxws.exceptions.MusicRecommenderFault;
 import de.uniba.dsg.models.ErrorMessage;
@@ -14,8 +15,9 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.logging.Logger;
 
-
+import static de.uniba.dsg.jaxws.MusicApiImpl.restServerUri;
 
 
 /**
@@ -23,8 +25,9 @@ import java.util.List;
  * Date: 25/05/18 12:22 PM
  */
 public class ArtistResourseWS implements ArtistApi {
+    private static final Logger LOGGER = Logger.getLogger(ArtistResourseWS.class.getName());
+
     /**
-     *
      * Method should return an artist modeled by the interpret model class
      * Method should be available at /artists/[artist-id], e.g., /artists/4gzpq5DPGxSnKTe4SA8HAU
      * Parameter name must be 'artist-id'
@@ -34,28 +37,36 @@ public class ArtistResourseWS implements ArtistApi {
      */
     @Override
     public Interpret getArtist(String artistId) {
+        //check if REST Server is available
+        boolean status = JaxWsServer.isPortInUse(restServerUri);
+        if (status == false) {
+            throw new MusicRecommenderFault("REST Server unavailable", "Server unavailable");
+        }
 
         Client client = ClientBuilder.newClient();
         Response response = client.target(MusicApiImpl.restServerUri)
                 .path("/artists").path(artistId)
                 .request(MediaType.APPLICATION_JSON_TYPE)
                 .get();
-        if(artistId== null || artistId.isEmpty()){
-            String cause = response.readEntity(ErrorMessage.class).getMessage();
-            throw new MusicRecommenderFault("Bad request format", cause);
+        try {
+            if (artistId == null || artistId.isEmpty()) {
+                String cause = response.readEntity(ErrorMessage.class).getMessage();
+            }
+        } catch (Exception e) {
+            throw new MusicRecommenderFault("Artist name required!", "Empty/ invalid paramter");
 
         }
-        System.out.println("Response code : "+response.getStatus());
+        System.out.println("Response code : " + response.getStatus());
 
         if (response.getStatus() == 200) {
             Interpret artist = response.readEntity(Interpret.class);
             return artist;
         } else if (response.getStatus() == 400) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
-            throw new MusicRecommenderFault("A client side error occurred", cause);
+            throw new MusicRecommenderFault("A client side error occurred ! Check artist id!", cause);
         } else if (response.getStatus() == 404) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
-            throw new MusicRecommenderFault("The requested resource was not found", cause);
+            throw new MusicRecommenderFault("The requested resource was not found ", cause);
         } else if (response.getStatus() == 500) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
             throw new MusicRecommenderFault("An internal server error occurred", cause);
@@ -63,10 +74,10 @@ public class ArtistResourseWS implements ArtistApi {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
             throw new MusicRecommenderFault("An unknown remote server error occurred", cause);
         }
+
     }
 
     /**
-     *
      * Method should return a collection of songs modeled by the song model class
      * Method should be available at /artists/[artist-id]/top-tracks, e.g., /artists/4gzpq5DPGxSnKTe4SA8HAU/top-tracks
      * Parameter name must be 'artist-id'
@@ -78,16 +89,20 @@ public class ArtistResourseWS implements ArtistApi {
      */
     @Override
     public List<Song> getTopTracks(String artistId) {
-
+        //check if REST Server is available
+        boolean status = JaxWsServer.isPortInUse(restServerUri);
+        if (status == false) {
+            throw new MusicRecommenderFault("REST Server unavailable", "Server unavailable");
+        }
 
         Client client = ClientBuilder.newClient();
         Response response = client.target(MusicApiImpl.restServerUri)
                 .path("/artists").path(artistId).path("/top-tracks")
                 .request(MediaType.APPLICATION_JSON_TYPE)
                 .get();
-        if(artistId== null || artistId.isEmpty()){
+        if (artistId == null || artistId.isEmpty()) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
-            throw new MusicRecommenderFault("Bad request format", cause);
+            throw new MusicRecommenderFault("Artist id missing!", cause);
 
         }
         if (response.getStatus() == 200) {
@@ -95,22 +110,20 @@ public class ArtistResourseWS implements ArtistApi {
             Gson gson = new Gson();
             Song[] songsArray = gson.fromJson(jsonString, Song[].class);
             int i;
-            int size =  songsArray.length;
+            int size = songsArray.length;
             List<Song> songList = new ArrayList<>();
 
-            for (i=0;i<size;i ++) {
+            for (i = 0; i < size; i++) {
                 Song song = new Song();
-                song=songsArray[i];
+                song = songsArray[i];
                 songList.add(song);
 
             }
-            return  songList;
+            return songList;
 
-        }
-
-        else if (response.getStatus() == 400) {
+        } else if (response.getStatus() == 400) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
-            throw new MusicRecommenderFault("A client side error occurred", cause);
+            throw new MusicRecommenderFault("A client side error occurred, Please check the artist id!", cause);
         } else if (response.getStatus() == 404) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
             throw new MusicRecommenderFault("The requested resource was not found", cause);
@@ -121,10 +134,10 @@ public class ArtistResourseWS implements ArtistApi {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
             throw new MusicRecommenderFault("An unknown remote server error occurred", cause);
         }
+
     }
 
     /**
-     *
      * Method should return a similar artist modeled by the interpret model class
      * Method should be available at /artists/[artist-id]/similar-artist, e.g., /artists/4gzpq5DPGxSnKTe4SA8HAU/similar-artist
      * Parameter name must be 'artist-id'
@@ -135,23 +148,31 @@ public class ArtistResourseWS implements ArtistApi {
      */
     @Override
     public Interpret getSimilarArtist(String artistId) {
+        //check if REST Server is available
+        boolean status = JaxWsServer.isPortInUse(restServerUri);
+        if (status == false) {
+            throw new MusicRecommenderFault("REST Server unavailable", "Server unavailable");
+        }
+
         Client client = ClientBuilder.newClient();
+        if (artistId == null || artistId.isEmpty()) {
+
+            throw new MusicRecommenderFault("Artist id missing!", "Missing parameter");
+        }
         Response response = client.target(MusicApiImpl.restServerUri)
-                .path("/artists").path(artistId).path("/similar-artist")
+                .path("/artists/").path(artistId).path("/similar-artist")
                 .request(MediaType.APPLICATION_JSON_TYPE)
                 .get();
-        System.out.println(response);
+        System.out.println("Response code:" + response.getStatus());
 
         if (response.getStatus() == 200) {
             Interpret artist = response.readEntity(Interpret.class);
             System.out.println(artist);
             return artist;
 
-        }
-
-        else if (response.getStatus() == 400) {
+        } else if (response.getStatus() == 400) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
-            throw new MusicRecommenderFault("A client side error occurred", cause);
+            throw new MusicRecommenderFault("A client side error occurred,please check the artist id!", cause);
         } else if (response.getStatus() == 404) {
             String cause = response.readEntity(ErrorMessage.class).getMessage();
             throw new MusicRecommenderFault("The requested resource was not found", cause);
@@ -163,4 +184,5 @@ public class ArtistResourseWS implements ArtistApi {
             throw new MusicRecommenderFault("An unknown remote server error occurred", cause);
         }
     }
+
 }

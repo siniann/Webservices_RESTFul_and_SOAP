@@ -1,18 +1,16 @@
 package de.uniba.dsg.interfaces;
 
-import javax.jws.WebMethod;
 import javax.jws.WebParam;
-import javax.jws.WebResult;
 import javax.ws.rs.core.Response;
 
 import de.uniba.dsg.models.PlaylistRequest;
 
 /**
- * TODO: Implement this interface for JAX-RS ONLY!
+ *  Implement this interface for JAX-RS ONLY!
  */
 public interface PlaylistApi {
     /**
-     * TODO:
+     *
      * Method should create a new playlist based on a PlaylistRequest modeled by the playlist model class
      * Method should be available at /playlists
      * Specify the name of a new playlist via the title attribute of a PlaylistRequest (mandatory)
@@ -25,5 +23,5 @@ public interface PlaylistApi {
      * Return a status code of 201 upon the creation of a new playlist together with the new playlist entity
      */
 
-    Response createPlaylist(@WebParam(name = "playlist-request") PlaylistRequest request);
+    Response createPlaylist(@WebParam(name = "playlist-request") PlaylistRequest request) ;
 }

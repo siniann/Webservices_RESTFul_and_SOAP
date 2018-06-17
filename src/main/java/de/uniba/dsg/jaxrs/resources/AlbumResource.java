@@ -1,19 +1,19 @@
 package de.uniba.dsg.jaxrs.resources;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.wrapper.spotify.exceptions.WebApiException;
-import com.wrapper.spotify.methods.AlbumRequest;
-import com.wrapper.spotify.methods.NewReleasesRequest;
-import com.wrapper.spotify.models.*;
+
 import de.uniba.dsg.SpotifyApi;
 import de.uniba.dsg.interfaces.AlbumApi;
+
 import de.uniba.dsg.jaxrs.exceptions.ClientRequestException;
 import de.uniba.dsg.jaxrs.exceptions.NoContentException;
-import de.uniba.dsg.jaxrs.exceptions.RemoteApiException;
 import de.uniba.dsg.jaxrs.exceptions.ResourceNotFoundException;
+
 import de.uniba.dsg.models.ErrorMessage;
 import de.uniba.dsg.models.Release;
 
-import javax.swing.border.TitledBorder;
 import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import java.io.IOException;
@@ -47,85 +47,57 @@ public class AlbumResource implements AlbumApi {
     @GET
     @Path("new-releases")
     public List<Release> getNewReleases(@QueryParam("country") String country, @QueryParam("size") int size) throws ClientRequestException, ResourceNotFoundException, NoContentException {
-
-        NewReleasesRequest newReleasesRequest;
-        //creating request based on available parameters
-        //both parameters missing
-        if (country == null && size == 0) {
-            newReleasesRequest = SpotifyApi.getInstance().getNewReleases().build();
+        List<Release> releases = new ArrayList<>();
+        //handling parameters
+        try {
+            if (country.length() == 0 || country == null)
+                //default country
+                country = "DE";
+        } catch (Exception e) {
+            country = "DE";
         }
-        //Only size parameter available
-        else if (country == null && size != 0) {
-            if (size < 0) {
-                LOGGER.log(Level.SEVERE, "Invalid size.Please provide a size greater than 0.");
-                throw new ClientRequestException(new ErrorMessage("Invalid size : " + size));
-            }
-            newReleasesRequest = SpotifyApi.getInstance().getNewReleases().limit(size).build();
+        if (size < 0) {
+            LOGGER.log(Level.SEVERE, "Invalid size!Size should not be negative");
+            throw new ClientRequestException(new ErrorMessage("Invalid size!Size should not be negative"));
         }
-        //Only country parameter available
-        else if (country != null && size == 0) {
-            newReleasesRequest = SpotifyApi.getInstance().getNewReleases().country(country).build();
-
+        if (size > 50) {
+            LOGGER.log(Level.SEVERE, "Size limit should be less than 50.");
+            throw new ClientRequestException(new ErrorMessage("Size limit should be less than 50."));
         }
-        //both parameter available
-        else {
-            if (country.length() != 2) {
-                LOGGER.severe("Invalid country.Please try 'DE','IN' etc.");
-                throw new ClientRequestException(new ErrorMessage("Invalid country : " + country));
-            }
-            if (size < 0) {
-                LOGGER.log(Level.SEVERE, "Invalid size. Only size greater than 0 is acceptable.");
-                throw new ClientRequestException(new ErrorMessage("Invalid size : " + size));
-            }
-            newReleasesRequest = SpotifyApi.getInstance().getNewReleases().country(country).limit(size).build();
-        }
+        //setting default size
+        if (size == 0)
+            size = 10;
 
         try {
-            //getting the  releases
-            NewReleases releasesResult = newReleasesRequest.get();
+            //getting new releases JSON string based on parameters
+            String ab = SpotifyApi.getInstance().getNewReleases().country(country).limit(size).build().getJson();
+            ObjectMapper mapper = new ObjectMapper();
+            //converting to JSON Object
+            JsonNode actualObj = mapper.readTree(ab);
 
-            if (releasesResult == null) {
-                LOGGER.log(Level.SEVERE, "There are no new releases related to the search.");
-                throw new NoContentException(new ErrorMessage("Request is valid,but unfortunately there are no new releases related to the search. "));
-            }
-            //getting albums from  releases
-            Page<SimpleAlbum> albums = releasesResult.getAlbums();
-            //getting Simple albums from albums
-            List<SimpleAlbum> simpleAlbum = albums.getItems();
-
-            String id = "";
-            AlbumRequest albumRequest = null;
-            List<Release> releaseList = new ArrayList<>();
-            //getting albums from List of SimpleAlbum
-            for (SimpleAlbum s : simpleAlbum) {
-                //creating Release model
-                Release release = new Release();
-                release.setTitle(s.getName());
-
-                //getting artists from album
-                id = s.getId();
-                albumRequest = SpotifyApi.getInstance().getAlbum(id).build();
-                List<SimpleArtist> simpleArtist = albumRequest.get().getArtists();
-
-                if (simpleArtist.isEmpty()) {
-                    LOGGER.log(Level.SEVERE, "There is no artists for album ");
-                    throw new ResourceNotFoundException(new ErrorMessage("There is no artists for album with id: " + id));
+            for (int i = 0; i < size; i++) {
+                int artistnumber = actualObj.get("albums").get("items").get(i).get("artists").size();
+                String artist = "", album;
+                //adding artist name
+                for (int j = 0; j < artistnumber; j++) {
+                    artist = artist + actualObj.get("albums").get("items").get(i).get("artists").get(j).get("name");
                 }
-                List<String> artists = new ArrayList<String>();
-                //getting artist names
-                for (SimpleArtist sa : simpleArtist) {
-                    artists.add(sa.getName());
-                }
-
-                release.setArtist(artists);
-                releaseList.add(release);
+                album = String.valueOf(actualObj.get("albums").get("items").get(i).get("name"));
+                //temporary release
+                Release temp = new Release();
+                temp.setArtist(artist);
+                temp.setTitle(album);
+                //adding to list of Releases
+                releases.add(temp);
             }
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "Some IO exception occurred!Retry!");
+            throw new ClientRequestException(new ErrorMessage("Some IO exception occurred!Retry!"));
 
-            return releaseList;
-
-        } catch (WebApiException | IOException e) {
-            LOGGER.log(Level.SEVERE, "WebApiException or IO Exception occurred");
-            throw new RemoteApiException(new ErrorMessage(e.getMessage()));
+        } catch (WebApiException e2) {
+            LOGGER.log(Level.SEVERE, "Invalid country code! Please provide valid countries like DE,AT,IN...");
+            throw new ClientRequestException(new ErrorMessage("Invalid country code! Please provide valid countries like DE,AT,IN..."));
         }
+        return releases;
     }
 }

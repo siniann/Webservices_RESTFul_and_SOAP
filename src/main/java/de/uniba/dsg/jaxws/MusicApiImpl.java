@@ -1,7 +1,7 @@
 package de.uniba.dsg.jaxws;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import java.net.*;
+
 import java.util.List;
 import java.util.Properties;
 import java.util.logging.Logger;
@@ -30,7 +30,7 @@ public class MusicApiImpl implements MusicApi {
         Properties properties = Configuration.loadProperties();
         try {
             restServerUri = new URI(properties.getProperty("restServerUri"));
-        } catch(URISyntaxException e) {
+        } catch (URISyntaxException e) {
             LOGGER.severe("Invalid URI for RESTful web service");
         }
     }
@@ -43,7 +43,6 @@ public class MusicApiImpl implements MusicApi {
     @Override
     public Interpret getArtist(String artistId) {
         return new ArtistResourseWS().getArtist(artistId);
-
     }
 
     @Override
@@ -58,7 +57,7 @@ public class MusicApiImpl implements MusicApi {
 
     @Override
     public List<Release> getNewReleases(String country, int size) {
-        return new AlbumResourceWS().getNewReleases(country,size);
+        return new AlbumResourceWS().getNewReleases(country, size);
     }
 
     @Override
@@ -66,4 +65,5 @@ public class MusicApiImpl implements MusicApi {
         return new PlaylistSoapResource().createPlaylist(request);
 
     }
+
 }

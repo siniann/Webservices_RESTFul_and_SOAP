@@ -15,6 +15,7 @@ import java.util.List;
  * - numberOfSongs:int, must be serialized as 'size'
  */
 @XmlRootElement(name = "PlaylistRequest")
+@XmlType(propOrder = {"title", "artistSeeds" ,"numberOfSongs"}, namespace = "http://jaxws.dsg.uniba.de/")
 
 public class PlaylistRequest  {
     private String title;
@@ -31,6 +32,7 @@ public class PlaylistRequest  {
 
     @XmlElement(name = "seeds")
     public List<String> getArtistSeeds() {
+
         return artistSeeds;
     }
 

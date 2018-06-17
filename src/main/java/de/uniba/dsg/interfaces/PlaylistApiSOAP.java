@@ -6,14 +6,13 @@ import de.uniba.dsg.models.PlaylistRequest;
 import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.jws.WebResult;
-import javax.ws.rs.core.Response;
 
 /**
- * TODO: Implement this interface for JAX-WS ONLY!
+ *  Implement this interface for JAX-WS ONLY!
  */
 public interface PlaylistApiSOAP {
     /**
-     * TODO:
+     *
      * Method should create a new playlist based on a PlaylistRequest modeled by the playlist model class
      * Method should be available at /playlists
      * Specify the name of a new playlist via the title attribute of a PlaylistRequest (mandatory)
@@ -27,6 +26,6 @@ public interface PlaylistApiSOAP {
      */
     @WebMethod
     @WebResult(name = "response")
-    Playlist createPlaylist(@WebParam(name = "playlist-request") PlaylistRequest request);
+    Playlist createPlaylist(@WebParam(name = "playlist-request") PlaylistRequest request) ;
 
 }

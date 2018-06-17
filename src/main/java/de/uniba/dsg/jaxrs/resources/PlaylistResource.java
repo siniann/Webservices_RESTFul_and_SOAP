@@ -1,21 +1,20 @@
 package de.uniba.dsg.jaxrs.resources;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import com.wrapper.spotify.methods.PlaylistCreationRequest;
-import de.uniba.dsg.SpotifyApi;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+
 import de.uniba.dsg.interfaces.PlaylistApi;
 import de.uniba.dsg.jaxrs.exceptions.ClientRequestException;
-import de.uniba.dsg.jaxws.MusicApiImpl;
+import de.uniba.dsg.jaxrs.exceptions.RemoteApiException;
 import de.uniba.dsg.models.*;
 
-
 import javax.ws.rs.*;
-import javax.ws.rs.client.Client;
-import javax.ws.rs.client.ClientBuilder;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 
@@ -45,67 +44,73 @@ public class PlaylistResource implements PlaylistApi {
      */
 
     @POST
-    @Consumes(MediaType.APPLICATION_JSON)
-    @Produces(MediaType.APPLICATION_JSON)
-    @Override
+    @Consumes("application/json")
+    @Produces("application/json")
     public Response createPlaylist(PlaylistRequest request) throws ClientRequestException {
-        String title = request.getTitle();
-        int size = request.getNumberOfSongs();
-        List<String> seeds = request.getArtistSeeds();
-        System.out.println("...........");
+        try {
+            //handling invalid parameters
+            if (request.getTitle() == null || request.getTitle().isEmpty()) {
+                LOGGER.log(Level.SEVERE, "Required title  parameter is missing.");
+                throw new ClientRequestException(new ErrorMessage("Required title  parameter is missing."));
+            }
+            if (request.getNumberOfSongs() < 0) {
+                LOGGER.log(Level.SEVERE, "Invalid size:"+request.getNumberOfSongs());
+                throw new ClientRequestException(new ErrorMessage("Invalis size."+request.getNumberOfSongs()));
 
+            }
 
-        if (title == null || title.isEmpty()) {
-            LOGGER.log(Level.SEVERE, "Title attribute missing in the request");
-            throw new ClientRequestException(new ErrorMessage("Please specify the 'title' in the request"));
-        }
-        if (size < 0) {
-            LOGGER.log(Level.SEVERE, "Invalid size attribute.");
-            throw new ClientRequestException(new ErrorMessage("Invalid size attribute."));
-        }
-        if (size == 0) {
-            size = 10;
-        }
+            Playlist temp_list = new Playlist();
+            List<Song> songs = new ArrayList<>();
+            int limit = 0, size = 0;
 
-        List<String> validSeeds = null;
-        //selecting valid seeds
-        for (String seed : seeds) {
-            System.out.println(seed);
-
-            if (seed.isEmpty() || seed == null) {
-                LOGGER.log(Level.SEVERE, "if");
-
+            //handling maximum request size
+            if (request.getNumberOfSongs() >= 50) {
+                LOGGER.log(Level.SEVERE, "Number of Songs should be less than 50.");
+                throw new ClientRequestException(new ErrorMessage("Number of Songs should be less than 50."));
+            }
+            if (request.getNumberOfSongs() != 0) {
+                limit = request.getNumberOfSongs();
             } else {
-                LOGGER.log(Level.SEVERE, "else");
-                validSeeds.add(seed);
+                limit = 10;
             }
-        }
-        System.out.println(validSeeds.toString());
-        List<Song> songList = null;
-        Song toptrack = null;
-        //creating playlist
-        ArtistResource artistResource = new ArtistResource();
-        for (String id : validSeeds) {
-            toptrack = artistResource.getTopTracks(id).get(0);
-            songList.add(toptrack);
-
-        }
-        System.out.println(songList.toString());
-        if (size > songList.size()) {
-            int moreSongsCount = size - songList.size();
-            String similarArtistId = null;
-            for (int i = 0; i < moreSongsCount; i++) {
-                similarArtistId = artistResource.getSimilarArtist(validSeeds.get(i)).getId();
-                toptrack = artistResource.getTopTracks(similarArtistId).get(0);
-                songList.add(toptrack);
+            //resize playlist size for request with more seeds
+            if (request.getArtistSeeds().size() > request.getNumberOfSongs()) {
+                limit = request.getArtistSeeds().size();
             }
+            ArtistResource artistResource = new ArtistResource();
+
+            for (String id : request.getArtistSeeds()) {
+                songs.add(artistResource.getTopTracks(id).get(0));
+                size++;
+                if (size >= limit)
+                    break;
+            }
+            int index = 0;
+            Interpret similarArtist;
+            for (int i = size; i < limit; i++) {
+                index = (i % (request.getArtistSeeds().size()));
+                similarArtist = artistResource.getSimilarArtist(request.getArtistSeeds().get(index));
+                songs.add(artistResource.getTopTracks(similarArtist.getId()).get(0));
+
+            }
+            //creating Playlist model
+            temp_list.setTracks(songs);
+            temp_list.setSize(temp_list.getTracks().size());
+            temp_list.setTitle(request.getTitle());
+
+            ObjectWriter ow = new ObjectMapper().writer().withDefaultPrettyPrinter();
+            String json = "error";
+            try {
+                //creating JSON for playlist
+                json = ow.writeValueAsString(temp_list);
+            } catch (JsonProcessingException e) {
+                LOGGER.log(Level.SEVERE, "Some JSON processing error occurred!");
+            }
+            return Response.status(201).entity(json).build();
+        } catch (Exception e) {
+            LOGGER.log(Level.SEVERE, "Some error occurred!");
+            throw new RemoteApiException(new ErrorMessage(e.getMessage()));
         }
-        System.out.println(songList.toString());
-
-        System.out.println(songList);
-        Response response = Response.ok().build();
-
-
-        return response;
     }
 }
+

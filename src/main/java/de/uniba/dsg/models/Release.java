@@ -17,7 +17,7 @@ import java.util.List;
 
 public class Release {
     private String title;
-    private List<String> artist;
+    private String artist;
 
     public String getTitle() {
         return title;
@@ -27,11 +27,11 @@ public class Release {
         this.title = title;
     }
 
-    public List<String> getArtist() {
+    public String getArtist() {
         return artist;
     }
 
-    public void setArtist(List<String> artist) {
+    public void setArtist(String artist) {
         this.artist = artist;
     }
 }

@@ -6,7 +6,6 @@ import javax.jws.WebMethod;
 import javax.jws.WebParam;
 import javax.jws.WebResult;
 
-
 public interface SearchApi {
     /**
      * Method does return an artist modeled by the interpret model class
@@ -17,5 +16,5 @@ public interface SearchApi {
      */
     @WebMethod
     @WebResult(name = "interpret")
-    Interpret searchArtist(@WebParam(name = "artist") String artistName);
+    Interpret searchArtist(@WebParam(name = "artist") String artistName) ;
 }

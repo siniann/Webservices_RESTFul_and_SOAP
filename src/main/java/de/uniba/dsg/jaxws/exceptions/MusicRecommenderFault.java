@@ -18,6 +18,7 @@ public class MusicRecommenderFault extends RuntimeException {
     }
 
     public MusicRecommenderFault(String message, String faultInfo) {
+
         super(message);
         MusicRecommenderFaultBean bean = new MusicRecommenderFaultBean();
         bean.setMessage(faultInfo);
